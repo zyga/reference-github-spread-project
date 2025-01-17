@@ -1,0 +1,51 @@
+name: Spread
+on:
+  push:
+
+jobs:
+  ubuntu-noble:
+    name: "ubuntu-cloud-24.04"
+    runs-on: ubuntu-latest
+    container:
+      image: registry.gitlab.com/zygoon/image-garden:latest
+      options: --device /dev/kvm
+    env:
+      GARDEN_DL_DIR: dl
+      GARDEN_SYSTEM: ubuntu-cloud-24.04
+      ARCH: x86_64
+      # GitLab project identifier of zygoon/spread-dist can be seen on
+      # https://gitlab.com/zygoon/spread-dist, under the three-dot menu on
+      # top-right.
+      SPREAD_GITLAB_PROJECT_ID: "65375371"
+      # Git revision of spread to install.
+      # This must have been built via spread-dist.
+      # TODO: switch to upstream 1.0 release when available.
+      SPREAD_REV: ec9dc6171fa32ae68a78de0fdce53d6a1548bcfd
+      SPREAD_GOARCH: amd64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: apt update && apt install -y gcc make
+      - name: Build the software
+        run: make -j
+      - name: Cache virtual machine image
+        id: cache-
+        uses: actions/cache@v4
+        with:
+          path: |
+            *.qcow2
+            *.img
+            *.iso
+            *.run
+            dl/
+          key: custom-image-${{ env.GARDEN_SYSTEM }}-${{ env.GARDEN_ARCH }}-${{ hashFiles('.image-garden.mk') }}
+      - name: Build virtual machine image
+        run: image-garden make "$GARDEN_SYSTEM.$ARCH.run"
+      - name: Install spread
+        run: curl
+          --location
+          --output spread
+          "https://gitlab.com/api/v4/projects/${SPREAD_GITLAB_PROJECT_ID}/packages/generic/spread/${SPREAD_REV}/spread.${SPREAD_GOARCH}" && chmod +x spread
+      - name: Run spread
+        run: ./spread -v "garden:${GARDEN_SYSTEM}"

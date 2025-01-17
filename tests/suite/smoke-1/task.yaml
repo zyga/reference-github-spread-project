@@ -1,0 +1,3 @@
+summary: run demo
+execute: |
+    /usr/local/bin/demo | MATCH "This is a demo"

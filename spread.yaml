@@ -1,0 +1,70 @@
+project: demo
+path: /tmp/demo
+exclude:
+  - "*.img"
+  - "*.iso"
+  - "*.lock"
+  - "*.log"
+  - "*.qcow2"
+  - "*.run"
+  - .git
+include:
+  - Makefile
+  - demo.c
+  - demo.o
+  - demo
+  - tests
+prepare: |
+  if test -z "$(command -v gcc)" || test -z "$(command -v make)"; then
+      case "$SPREAD_SYSTEM" in
+        ubuntu-*|debian-*)
+          apt update
+          apt install -y gcc make
+          ;;
+        fedora-*)
+          dnf install -y gcc make
+          ;;
+        opensuse-*)
+          zypper install -y gcc make
+          ;;
+        *)
+          echo "How do I install packages on ${SPREAD_SYSTEM}?"
+          exit 1
+      esac
+      echo "DID INSTALL PACKAGES IN PREPARE"
+  fi
+  if [ -e demo ] && [ -e demo.o ]; then
+      touch -r Makefile demo demo.o
+      echo "DID TOUCH DEMO"
+  fi
+  make --warn-undefined-variables install
+restore: |
+  make clean
+  make --warn-undefined-variables uninstall
+backends:
+  garden:
+    type: adhoc
+    allocate: exec image-garden allocate --premade "$SPREAD_SYSTEM"."$(uname -m)"
+    discard: exec image-garden discard "$SPREAD_SYSTEM_ADDRESS"
+    systems:
+      - ubuntu-cloud-16.04:
+          username: ubuntu
+          password: ubuntu
+      - ubuntu-cloud-22.04:
+          username: ubuntu
+          password: ubuntu
+      - ubuntu-cloud-24.04:
+          username: ubuntu
+          password: ubuntu
+      - debian-cloud-12:
+          username: debian
+          password: debian
+      - fedora-cloud-41:
+          username: fedora
+          password: fedora
+      - opensuse-cloud-tumbleweed:
+          username: opensuse
+          password: opensuse
+suites:
+  tests/suite/:
+    summary: ...
